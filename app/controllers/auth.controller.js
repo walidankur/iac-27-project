@@ -1,9 +1,4 @@
-const db = require("../models");
-const config = require("../config/auth.config");
-const User = db.user;
-const Role = db.role;
-
-const Op = db.Sequelize.Op;
+const User = require('../models/User.js')
 
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
@@ -12,27 +7,10 @@ exports.signup = async (req, res) => {
   // Save User to Database
   try {
     const user = await User.create({
-      username: req.body.username,
-      email: req.body.email,
-      password: bcrypt.hashSync(req.body.password, 8),
+      ...req.body,
+      password: bcrypt.hashSync(req.body.password),
     });
-
-    if (req.body.roles) {
-      const roles = await Role.findAll({
-        where: {
-          name: {
-            [Op.or]: req.body.roles,
-          },
-        },
-      });
-
-      const result = user.setRoles(roles);
-      if (result) res.send({ message: "User registered successfully!" });
-    } else {
-      // user has role = 1
-      const result = user.setRoles([1]);
-      if (result) res.send({ message: "User registered successfully!" });
-    }
+      res.status(200).json(user)
   } catch (error) {
     res.status(500).send({ message: error.message });
   }
@@ -41,9 +19,7 @@ exports.signup = async (req, res) => {
 exports.signin = async (req, res) => {
   try {
     const user = await User.findOne({
-      where: {
-        username: req.body.username,
-      },
+        username: req.body.username
     });
 
     if (!user) {
@@ -60,28 +36,27 @@ exports.signin = async (req, res) => {
         message: "Invalid Password!",
       });
     }
-
+    // console.log(user.id);
+    // console.log(process.env.SECRET);
     const token = jwt.sign({ id: user.id },
-                           config.secret,
+                           process.env.SECRET || "iac-secret",
                            {
                             algorithm: 'HS256',
                             allowInsecureKeySizes: true,
                             expiresIn: 86400, // 24 hours
                            });
-
-    let authorities = [];
-    const roles = await user.getRoles();
-    for (let i = 0; i < roles.length; i++) {
-      authorities.push("ROLE_" + roles[i].name.toUpperCase());
-    }
-
+    //console.log(token);
     req.session.token = token;
+ 
+    //req.session = token;
+    console.log('session: ', req.session.token )
 
     return res.status(200).send({
       id: user.id,
       username: user.username,
       email: user.email,
-      roles: authorities,
+      role: user.role,
+      token:token
     });
   } catch (error) {
     return res.status(500).send({ message: error.message });

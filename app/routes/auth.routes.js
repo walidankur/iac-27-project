@@ -1,5 +1,6 @@
 const { verifySignUp } = require("../middleware");
 const controller = require("../controllers/auth.controller");
+const { verify } = require("jsonwebtoken");
 
 module.exports = function(app) {
   app.use(function(req, res, next) {
@@ -14,7 +15,7 @@ module.exports = function(app) {
     "/api/auth/signup",
     [
       verifySignUp.checkDuplicateUsernameOrEmail,
-      verifySignUp.checkRolesExisted
+      verifySignUp.check_allowed_role
     ],
     controller.signup
   );
